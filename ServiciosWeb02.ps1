@@ -10,6 +10,10 @@ $region = "us-east-1"
 $zona = "us-east-1a"
 $outputFile = "ServiciosWeb$parametro-output.txt"
 
+# Dominios fijos (siempre terminan en 02)
+$linuxHostname = "ubu.alisal02.com.es"
+$windowsHostname = "win.alisal02.com.es"
+
 # Iniciar el archivo de salida
 "=== INFRAESTRUCTURA CREADA ===" | Out-File -FilePath $outputFile
 "Fecha: $(Get-Date)" | Out-File -FilePath $outputFile -Append
@@ -119,7 +123,6 @@ if (-not $keyWindowsPair) {
 "" | Out-File -FilePath $outputFile -Append
 
 # Configurar User Data para Linux
-$linuxHostname = "ubu.alisal$parametro.com.es"
 $userDataLinux = @"
 #!/bin/bash
 apt-get update
@@ -132,13 +135,12 @@ echo "<html><body><h1>$parametro - Nginx instalado via AWS PowerShell</h1><p>Hos
 $userDataLinuxEncoded = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($userDataLinux))
 
 # Configurar User Data para Windows
-$windowsHostname = "win.alisal$parametro.com.es"
 $userDataWindows = @"
 <powershell>
 Install-WindowsFeature -name Web-Server -IncludeManagementTools
 Remove-Item -Path C:\inetpub\wwwroot\iisstart.htm
 Add-Content -Path C:\inetpub\wwwroot\iisstart.htm -Value "<html><body><h1>$parametro - IIS Instalado via AWS PowerShell</h1><p>Hostname: $windowsHostname</p></body></html>"
-Rename-Computer -NewName $windowsHostname.Split('.')[0] -Force
+Rename-Computer -NewName $($windowsHostname.Split('.')[0]) -Force
 </powershell>
 "@
 $userDataWindowsEncoded = [System.Convert]::ToBase64String([System.Text.Encoding]::ASCII.GetBytes($userDataWindows))
@@ -186,10 +188,10 @@ $instances = Get-EC2Instance -Instance @($instanceLinuxId, $instanceWindowsId) -
 
 # Configurar Route53 para los nombres de dominio (simulado, ya que necesitarías una zona hospedada)
 "=== NOTA IMPORTANTE ===" | Out-File -FilePath $outputFile -Append
-"Para que las URLs http://ubu.alisal$parametro.com.es y http://win.alisal$parametro.com.es funcionen," | Out-File -FilePath $outputFile -Append
-"debes configurar manualmente en tu DNS (Route53 o otro proveedor) las siguientes entradas:" | Out-File -FilePath $outputFile -Append
-"- ubu.alisal$parametro.com.es -> $($eipLinux.PublicIp)" | Out-File -FilePath $outputFile -Append
-"- win.alisal$parametro.com.es -> $($eipWindows.PublicIp)" | Out-File -FilePath $outputFile -Append
+"Para que las URLs funcionen correctamente:" | Out-File -FilePath $outputFile -Append
+"- http://$linuxHostname -> $($eipLinux.PublicIp)" | Out-File -FilePath $outputFile -Append
+"- http://$windowsHostname -> $($eipWindows.PublicIp)" | Out-File -FilePath $outputFile -Append
+"Debes configurar manualmente en tu DNS (Route53 o otro proveedor) las entradas anteriores." | Out-File -FilePath $outputFile -Append
 "" | Out-File -FilePath $outputFile -Append
 
 # Mostrar resumen en consola
@@ -210,5 +212,5 @@ Write-Host "Conectar via RDP a: $($eipWindows.PublicIp)"
 Write-Host "`nNota: Para la instancia Windows, necesitarás obtener la contraseña administrativa usando el par de claves una vez que la instancia esté running."
 
 Write-Host "`nRecuerda configurar los registros DNS para las URLs:"
-Write-Host "- ubu.alisal$parametro.com.es -> $($eipLinux.PublicIp)"
-Write-Host "- win.alisal$parametro.com.es -> $($eipWindows.PublicIp)"
+Write-Host "- http://$linuxHostname -> $($eipLinux.PublicIp)"
+Write-Host "- http://$windowsHostname -> $($eipWindows.PublicIp)"
